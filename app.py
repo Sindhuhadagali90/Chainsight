@@ -44,10 +44,41 @@ html, body, [data-testid="stAppViewContainer"],
     background-color: {SURFACE} !important;
     border-right: 1px solid {BORDER} !important;
 }}
+
+/* ── Remove the default Streamlit top header bar ── */
+[data-testid="stHeader"] {{
+    display: none !important;
+    height: 0 !important;
+}}
+
+/* ── Kill the top dead-space / toolbar ── */
+[data-testid="stToolbar"],
+[data-testid="stDecoration"],
+#MainMenu,
+footer {{
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+}}
+
+/* ── Pull content all the way to the top ── */
 .block-container {{
-    padding: 24px 32px !important;
+    padding: 12px 32px 24px 32px !important;
+    padding-top: 12px !important;
+    margin-top: 0 !important;
     max-width: 100% !important;
     background: {BG} !important;
+}}
+
+/* ── Remove any remaining gap above the first element ── */
+[data-testid="stAppViewBlockContainer"] {{
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+}}
+
+/* ── Make sidebar start from very top ── */
+[data-testid="stSidebar"] > div:first-child {{
+    padding-top: 16px !important;
 }}
 h1, h2, h3 {{ color: {TEXT} !important; font-family: 'Syne', sans-serif !important; }}
 p  {{ color: {MUTED} !important; }}
@@ -169,7 +200,7 @@ def page_header(title, accent, subtitle, badge="", badge_color=ACCENT):
                f"color:{badge_color};letter-spacing:1px'>{badge}</span>")
     st.markdown(f"""
     <div style='display:flex;justify-content:space-between;align-items:center;
-                flex-wrap:wrap;gap:12px;margin-bottom:20px'>
+                flex-wrap:wrap;gap:12px;margin-top:8px;margin-bottom:20px'>
       <div>
         <div style='font-size:28px;font-weight:800;letter-spacing:-1px;
                     color:{TEXT};font-family:Syne,sans-serif;line-height:1.1'>
