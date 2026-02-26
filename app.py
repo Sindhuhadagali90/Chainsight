@@ -1,19 +1,15 @@
 """
 ChainSight — Supply Chain Risk Intelligence Dashboard
-Streamlit + Matplotlib  (no Tkinter, no Plotly required)
+Built with Streamlit + Plotly (both pre-installed on Streamlit Cloud)
+Zero extra dependencies needed.
 """
 
 import streamlit as st
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from matplotlib.patches import FancyBboxPatch
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import numpy as np
 
-# ══════════════════════════════════════════════════════════════
-# PAGE CONFIG  (must be first Streamlit call)
-# ══════════════════════════════════════════════════════════════
+# ─── PAGE CONFIG (must be first Streamlit call) ───────────────────────────────
 st.set_page_config(
     page_title="ChainSight — Supply Chain Risk",
     page_icon="◆",
@@ -21,9 +17,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ══════════════════════════════════════════════════════════════
-# THEME
-# ══════════════════════════════════════════════════════════════
+# ─── PALETTE ─────────────────────────────────────────────────────────────────
 BG      = "#080C10"
 SURFACE = "#0D1318"
 CARD    = "#111820"
@@ -36,141 +30,100 @@ TEXT    = "#E8F0F8"
 MUTED   = "#5A7080"
 DIM     = "#2A3A48"
 
-# ── Global CSS ──────────────────────────────────────────────
+# ─── GLOBAL CSS ───────────────────────────────────────────────────────────────
 st.markdown(f"""
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap');
 
-  html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] {{
-      background-color: {BG} !important;
-      font-family: 'Syne', sans-serif !important;
-  }}
-  [data-testid="stSidebar"] {{
-      background-color: {SURFACE} !important;
-      border-right: 1px solid {BORDER};
-  }}
-  [data-testid="stSidebar"] * {{ color: {MUTED} !important; }}
-  section[data-testid="stSidebar"] .stRadio label {{
-      color: {MUTED} !important;
-      font-family: 'Syne', sans-serif !important;
-      font-size: 14px !important;
-      padding: 6px 0 !important;
-  }}
-  section[data-testid="stSidebar"] .stRadio [data-baseweb="radio"] {{
-      background: transparent !important;
-  }}
-  .stMetric {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: 12px; padding: 16px !important; }}
-  .stMetric label {{ font-family: 'Space Mono', monospace !important; font-size: 10px !important; color: {MUTED} !important; letter-spacing: 1.5px; text-transform: uppercase; }}
-  .stMetric [data-testid="metric-container"] > div {{ color: {TEXT} !important; }}
-  div[data-testid="stForm"] {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: 14px; padding: 20px; }}
-  .stSelectbox label, .stNumberInput label, .stSlider label {{
-      font-family: 'Space Mono', monospace !important;
-      font-size: 10px !important;
-      color: {MUTED} !important;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-  }}
-  .stSelectbox > div > div, .stNumberInput > div > div > input {{
-      background: {SURFACE} !important;
-      border: 1px solid {BORDER} !important;
-      color: {TEXT} !important;
-      border-radius: 8px !important;
-  }}
-  .stButton > button {{
-      background: {ACCENT} !important;
-      color: {BG} !important;
-      font-family: 'Syne', sans-serif !important;
-      font-weight: 800 !important;
-      font-size: 14px !important;
-      border: none !important;
-      border-radius: 10px !important;
-      padding: 12px 24px !important;
-      width: 100%;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      transition: opacity .2s;
-  }}
-  .stButton > button:hover {{ opacity: 0.88 !important; }}
-  h1, h2, h3, h4 {{ font-family: 'Syne', sans-serif !important; color: {TEXT} !important; }}
-  p, li {{ color: {MUTED} !important; font-family: 'Syne', sans-serif !important; }}
-  .block-container {{ padding: 24px 32px !important; max-width: 100% !important; }}
-  [data-testid="stHorizontalBlock"] {{ gap: 16px; }}
-  .stTabs [data-baseweb="tab-list"] {{
-      background: {SURFACE} !important;
-      border-radius: 10px !important;
-      padding: 4px !important;
-      gap: 4px;
-      border: 1px solid {BORDER};
-  }}
-  .stTabs [data-baseweb="tab"] {{
-      background: transparent !important;
-      color: {MUTED} !important;
-      font-family: 'Space Mono', monospace !important;
-      font-size: 11px !important;
-      letter-spacing: 1px;
-      border-radius: 8px !important;
-      padding: 8px 18px !important;
-  }}
-  .stTabs [aria-selected="true"] {{
-      background: {CARD} !important;
-      color: {ACCENT} !important;
-  }}
-  .stDataFrame {{ background: {CARD} !important; }}
-  [data-testid="stExpander"] {{
-      background: {CARD} !important;
-      border: 1px solid {BORDER} !important;
-      border-radius: 10px !important;
-  }}
-  .css-1d391kg, [data-testid="stVerticalBlock"] > div > div {{
-      background: transparent !important;
-  }}
-  div.stAlert {{ background: {CARD}; border-radius: 10px; border: 1px solid {BORDER}; }}
+html, body, [data-testid="stAppViewContainer"],
+[data-testid="stApp"], .main {{
+    background-color: {BG} !important;
+    font-family: 'Syne', sans-serif !important;
+}}
+[data-testid="stSidebar"] {{
+    background-color: {SURFACE} !important;
+    border-right: 1px solid {BORDER} !important;
+}}
+.block-container {{
+    padding: 24px 32px !important;
+    max-width: 100% !important;
+    background: {BG} !important;
+}}
+h1, h2, h3 {{ color: {TEXT} !important; font-family: 'Syne', sans-serif !important; }}
+p  {{ color: {MUTED} !important; }}
+.stButton > button {{
+    background: {ACCENT} !important;
+    color: {BG} !important;
+    font-weight: 800 !important;
+    font-size: 14px !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 12px 24px !important;
+    width: 100% !important;
+    text-transform: uppercase;
+}}
+.stButton > button:hover {{ opacity: 0.85 !important; }}
+.stSelectbox label, .stNumberInput label {{
+    font-family: 'Space Mono', monospace !important;
+    font-size: 10px !important;
+    color: {MUTED} !important;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}}
+.stSelectbox > div > div {{
+    background: {SURFACE} !important;
+    border: 1px solid {BORDER} !important;
+    color: {TEXT} !important;
+    border-radius: 8px !important;
+}}
+.stNumberInput input {{
+    background: {SURFACE} !important;
+    border: 1px solid {BORDER} !important;
+    color: {TEXT} !important;
+    border-radius: 8px !important;
+}}
 </style>
 """, unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════
-# MATPLOTLIB GLOBAL STYLE
-# ══════════════════════════════════════════════════════════════
-plt.rcParams.update({
-    "figure.facecolor":  CARD,
-    "axes.facecolor":    CARD,
-    "axes.edgecolor":    BORDER,
-    "axes.labelcolor":   MUTED,
-    "axes.titlecolor":   TEXT,
-    "axes.titleweight":  "bold",
-    "axes.titlesize":    12,
-    "xtick.color":       MUTED,
-    "ytick.color":       MUTED,
-    "grid.color":        BORDER,
-    "grid.alpha":        0.5,
-    "text.color":        TEXT,
-    "font.family":       "monospace",
-    "axes.spines.top":   False,
-    "axes.spines.right": False,
-    "axes.spines.left":  True,
-    "axes.spines.bottom":True,
-})
+# ─── PLOTLY BASE LAYOUT ───────────────────────────────────────────────────────
+PLOT_LAYOUT = dict(
+    paper_bgcolor=CARD,
+    plot_bgcolor=CARD,
+    font=dict(family="Space Mono, monospace", color=MUTED, size=11),
+    margin=dict(l=12, r=12, t=36, b=12),
+    showlegend=False,
+    xaxis=dict(gridcolor=BORDER, linecolor=BORDER, tickfont=dict(color=MUTED)),
+    yaxis=dict(gridcolor=BORDER, linecolor=BORDER, tickfont=dict(color=MUTED)),
+)
 
-def _spine(ax):
-    ax.spines["left"].set_color(BORDER)
-    ax.spines["bottom"].set_color(BORDER)
+def base_fig(height=320):
+    fig = go.Figure()
+    fig.update_layout(height=height, **PLOT_LAYOUT)
+    return fig
 
-# ══════════════════════════════════════════════════════════════
-# DATA
-# ══════════════════════════════════════════════════════════════
-ROUTE_LABELS  = ["Suez","Commodity","Pacific","Atlantic","Intra-Asia"]
+def render(fig, key=None):
+    st.plotly_chart(fig, use_container_width=True,
+                    config={"displayModeBar": False}, key=key)
+
+# ─── DATA ─────────────────────────────────────────────────────────────────────
+ROUTE_LABELS  = ["Suez", "Commodity", "Pacific", "Atlantic", "Intra-Asia"]
 ROUTE_DELAYS  = [1.41, 1.22, 1.05, 0.92, 0.72]
 ROUTE_COLORS  = [ACCENT2, ACCENT3, ACCENT, BLUE, DIM]
 
-PRODUCT_LABELS = ["Perishables","Semiconductors","Consumer Elec.","Pharma","Machinery","Textiles","Raw Materials"]
+PRODUCT_LABELS = ["Perishables","Semiconductors","Consumer Elec.",
+                  "Pharma","Machinery","Textiles","Raw Materials"]
 PRODUCT_DELAYS = [1.28, 1.14, 1.07, 0.98, 0.91, 0.85, 0.78]
-PRODUCT_COLORS = [ACCENT2 if v>1.1 else ACCENT3 if v>0.95 else ACCENT for v in PRODUCT_DELAYS]
+PRODUCT_COLORS = [ACCENT2 if v>1.1 else ACCENT3 if v>0.95 else ACCENT
+                  for v in PRODUCT_DELAYS]
 
-ORIGIN_LABELS  = ["Santos, BR","Mumbai, IN","Shenzhen, CN","Shanghai, CN","Tokyo, JP","Hamburg, DE"]
-ORIGIN_DELAYS  = [1.30, 1.22, 1.05, 0.98, 0.88, 0.72]
-ORIGIN_COLORS  = [ACCENT2 if v>1.1 else ACCENT3 if v>0.95 else BLUE for v in ORIGIN_DELAYS]
+ORIGIN_LABELS = ["Santos, BR","Mumbai, IN","Shenzhen, CN",
+                 "Shanghai, CN","Tokyo, JP","Hamburg, DE"]
+ORIGIN_DELAYS = [1.30, 1.22, 1.05, 0.98, 0.88, 0.72]
+ORIGIN_COLORS = [ACCENT2 if v>1.1 else ACCENT3 if v>0.95 else BLUE
+                 for v in ORIGIN_DELAYS]
 
-MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+MONTHS = ["Jan","Feb","Mar","Apr","May","Jun",
+          "Jul","Aug","Sep","Oct","Nov","Dec"]
 VOL    = [780,720,850,810,760,900,870,830,780,910,840,760]
 DLY    = [11,8,13,10,9,14,12,11,9,15,11,9]
 
@@ -183,430 +136,447 @@ MODELS_DATA = [
 ]
 
 FEAT_NAMES = ["Sched_Lead_Time","Base_Lead_Time","Route_Type","Origin_City",
-              "Weather_Index","Geopolitical_Idx","Transport_Mode","Product_Cat","Shipping_Cost"]
+              "Weather_Index","Geopolitical_Idx","Transport_Mode",
+              "Product_Cat","Shipping_Cost"]
 FEAT_VALS  = [0.31, 0.22, 0.14, 0.09, 0.07, 0.06, 0.05, 0.04, 0.01]
 
-DELAY_BINS  = list(range(16))
-DELAY_CNTS  = [8753,362,185,148,112,89,72,58,45,38,30,24,19,14,11,40]
+DELAY_BINS = list(range(16))
+DELAY_CNTS = [8753,362,185,148,112,89,72,58,45,38,30,24,19,14,11,40]
 
 CORR_NAMES = ["Actual_Lead_Time","Sched_Lead_Time","Base_Lead_Time",
               "Weather_Severity","Geo_Risk_Index","Inflation_Rate","Shipping_Cost"]
 CORR_VALS  = [0.82, 0.43, 0.38, 0.12, 0.08, 0.03, 0.01]
 CORR_COLS  = [ACCENT2, ACCENT3, ACCENT3, BLUE, BLUE, DIM, DIM]
 
-DISRUPT_LABELS = ["Port Congestion","Geopolitical\nConflict","Extreme\nWeather","No Event"]
+DISRUPT_LABELS = ["Port Congestion","Geopolitical Conflict",
+                  "Extreme Weather","No Event"]
 DISRUPT_CNTS   = [820, 312, 115, 8753]
 DISRUPT_COLORS = [ACCENT2, ACCENT3, BLUE, DIM]
 
+ROUTE_RISK  = {"Suez":0.16,"Commodity":0.12,"Pacific":0.08,
+               "Atlantic":0.06,"Intra-Asia":0.04}
+PROD_RISK   = {"Perishables":0.05,"Semiconductors":0.04,
+               "Consumer Electronics":0.03,"Pharmaceuticals":0.02}
+ORIGIN_RISK = {"Santos, BR":0.06,"Mumbai, IN":0.05,"Shenzhen, CN":0.03}
 
-def hex_to_rgba(h, a=1.0):
-    h = h.lstrip('#')
-    r,g,b = (int(h[i:i+2],16)/255 for i in (0,2,4))
-    return (r,g,b,a)
+# ─── UI HELPERS ───────────────────────────────────────────────────────────────
+def page_header(title, accent, subtitle, badge="", badge_color=ACCENT):
+    bdg = ""
+    if badge:
+        bdg = (f"<span style='padding:5px 14px;border-radius:20px;"
+               f"border:1px solid {badge_color}55;background:{badge_color}11;"
+               f"font-family:\"Space Mono\",monospace;font-size:10px;"
+               f"color:{badge_color};letter-spacing:1px'>{badge}</span>")
+    st.markdown(f"""
+    <div style='display:flex;justify-content:space-between;align-items:center;
+                flex-wrap:wrap;gap:12px;margin-bottom:20px'>
+      <div>
+        <div style='font-size:28px;font-weight:800;letter-spacing:-1px;
+                    color:{TEXT};font-family:Syne,sans-serif;line-height:1.1'>
+          {title} <span style='color:{ACCENT}'>{accent}</span>
+        </div>
+        <div style='font-family:"Space Mono",monospace;font-size:10px;
+                    color:{MUTED};margin-top:6px;letter-spacing:.5px'>{subtitle}</div>
+      </div>
+      {bdg}
+    </div>""", unsafe_allow_html=True)
 
 
-# ══════════════════════════════════════════════════════════════
-# SIDEBAR
-# ══════════════════════════════════════════════════════════════
+def kpi(label, value, sub, color):
+    st.markdown(f"""
+    <div style='background:{CARD};border:1px solid {BORDER};border-radius:14px;
+                padding:20px 22px;height:100%'>
+      <div style='height:2px;background:{color};border-radius:2px;
+                  margin-bottom:12px'></div>
+      <div style='font-family:"Space Mono",monospace;font-size:9px;
+                  letter-spacing:1.5px;text-transform:uppercase;
+                  color:{MUTED}'>{label}</div>
+      <div style='font-size:32px;font-weight:800;letter-spacing:-2px;color:{color};
+                  font-family:Syne,sans-serif;line-height:1.1;margin:4px 0'>{value}</div>
+      <div style='font-family:"Space Mono",monospace;font-size:10px;
+                  color:{MUTED}'>{sub}</div>
+    </div>""", unsafe_allow_html=True)
+
+
+def card_title(title, sub=""):
+    st.markdown(f"""
+    <div style='margin-bottom:8px'>
+      <div style='font-size:13px;font-weight:700;color:{TEXT};
+                  font-family:Syne,sans-serif'>{title}</div>
+      {"" if not sub else f"<div style='font-family:\"Space Mono\",monospace;font-size:9px;color:{MUTED};margin-top:2px'>{sub}</div>"}
+    </div>""", unsafe_allow_html=True)
+
+
+# ─── SIDEBAR ──────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown(f"""
-    <div style='padding:8px 0 20px'>
+    <div style='padding:8px 0 18px'>
       <div style='display:flex;align-items:center;gap:10px'>
-        <div style='background:{ACCENT};border-radius:8px;width:32px;height:32px;
+        <div style='background:{ACCENT};border-radius:8px;width:34px;height:34px;
                     display:flex;align-items:center;justify-content:center;
-                    font-size:18px;font-weight:900;color:{BG}'>◆</div>
+                    font-size:20px;font-weight:900;color:{BG}'>◆</div>
         <div>
-          <div style='font-family:Syne,sans-serif;font-size:18px;font-weight:800;color:{TEXT}'>
-            Chain<span style='color:{ACCENT}'>Sight</span>
-          </div>
-          <div style='font-family:"Space Mono",monospace;font-size:9px;
+          <div style='font-family:Syne,sans-serif;font-size:18px;
+                      font-weight:800;color:{TEXT}'>
+            Chain<span style='color:{ACCENT}'>Sight</span></div>
+          <div style='font-family:"Space Mono",monospace;font-size:8px;
                       color:{MUTED};letter-spacing:2px'>RISK INTELLIGENCE v1.0</div>
         </div>
       </div>
     </div>
-    <hr style='border-color:{BORDER};margin:0 0 16px'>
+    <hr style='border-color:{BORDER};margin:0 0 14px'>
     """, unsafe_allow_html=True)
 
-    page = st.radio(
-        "Navigation",
-        ["▦  Overview", "⚡  Risk Predictor", "∿  EDA Insights", "▤  Model Comparison"],
-        label_visibility="collapsed",
-    )
+    page = st.radio("nav", [
+        "▦  Overview",
+        "⚡  Risk Predictor",
+        "∿  EDA Insights",
+        "▤  Model Comparison",
+    ], label_visibility="collapsed")
 
     st.markdown(f"""
-    <hr style='border-color:{BORDER};margin:20px 0 12px'>
+    <hr style='border-color:{BORDER};margin:18px 0 12px'>
     <div style='display:flex;align-items:center;gap:8px'>
       <div style='width:8px;height:8px;border-radius:50%;background:{ACCENT};
                   box-shadow:0 0 6px {ACCENT}'></div>
-      <span style='font-family:"Space Mono",monospace;font-size:10px;
+      <span style='font-family:"Space Mono",monospace;font-size:9px;
                    color:{MUTED};letter-spacing:1.5px'>MODEL LIVE · XGB v1.0</span>
-    </div>
-    """, unsafe_allow_html=True)
+    </div>""", unsafe_allow_html=True)
 
 
-# ══════════════════════════════════════════════════════════════
-# HELPERS
-# ══════════════════════════════════════════════════════════════
-def page_header(title, accent_word, subtitle, badge_text="", badge_color=ACCENT):
-    badge_html = ""
-    if badge_text:
-        badge_html = f"""
-        <span style='display:inline-flex;align-items:center;gap:6px;
-                     padding:5px 12px;border-radius:20px;
-                     border:1px solid {badge_color}44;
-                     background:{badge_color}11;
-                     font-family:"Space Mono",monospace;font-size:10px;
-                     color:{badge_color};letter-spacing:1px'>{badge_text}</span>"""
-    st.markdown(f"""
-    <div style='display:flex;justify-content:space-between;align-items:flex-start;
-                flex-wrap:wrap;gap:12px;margin-bottom:4px'>
-      <div>
-        <h1 style='font-size:28px;font-weight:800;letter-spacing:-1px;
-                   margin:0;line-height:1.1'>
-          {title} <span style='color:{ACCENT}'>{accent_word}</span>
-        </h1>
-        <p style='font-family:"Space Mono",monospace;font-size:10px;
-                  color:{MUTED};margin:6px 0 0;letter-spacing:.5px'>{subtitle}</p>
-      </div>
-      {badge_html}
-    </div>
-    """, unsafe_allow_html=True)
-
-
-def kpi_card(label, value, sub, color):
-    st.markdown(f"""
-    <div style='background:{CARD};border:1px solid {BORDER};border-radius:14px;
-                padding:20px 22px;position:relative;overflow:hidden'>
-      <div style='height:2px;background:{color};border-radius:2px;margin-bottom:12px'></div>
-      <div style='font-family:"Space Mono",monospace;font-size:9px;
-                  letter-spacing:1.5px;text-transform:uppercase;color:{MUTED}'>{label}</div>
-      <div style='font-size:34px;font-weight:800;letter-spacing:-2px;
-                  color:{color};font-family:Syne,sans-serif;line-height:1.1'>{value}</div>
-      <div style='font-family:"Space Mono",monospace;font-size:10px;
-                  color:{MUTED};margin-top:6px'>{sub}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-def section_card(title, subtitle=""):
-    st.markdown(f"""
-    <div style='margin-bottom:10px'>
-      <div style='font-size:14px;font-weight:700;color:{TEXT};
-                  font-family:Syne,sans-serif;letter-spacing:-.3px'>{title}</div>
-      <div style='font-family:"Space Mono",monospace;font-size:9px;
-                  color:{MUTED};margin-top:2px;letter-spacing:.5px'>{subtitle}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-def show_fig(fig, use_container_width=True):
-    fig.tight_layout(pad=1.4)
-    st.pyplot(fig, use_container_width=use_container_width)
-    plt.close(fig)
-
-
-# ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 # PAGE 1 — OVERVIEW
-# ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 if page == "▦  Overview":
     page_header("Supply Chain", "Overview",
                 "10,000 SHIPMENTS  ·  GLOBAL ROUTES  ·  2024–2025",
                 "● Live Model", ACCENT)
-    st.markdown("<div style='margin-top:16px'></div>", unsafe_allow_html=True)
 
-    # KPI row
-    c1, c2, c3, c4 = st.columns(4)
-    with c1: kpi_card("TOTAL SHIPMENTS",  "10,000", "Across 6 origin cities",    ACCENT)
-    with c2: kpi_card("DELAYED RATE",     "12.5%",  "1,247 late shipments",       ACCENT2)
-    with c3: kpi_card("AVG DELAY DAYS",   "0.95",   "Max observed: 20 days",      ACCENT3)
-    with c4: kpi_card("MODEL ROC-AUC",    "0.941",  "XGBoost — best performer",   BLUE)
+    k1, k2, k3, k4 = st.columns(4)
+    with k1: kpi("TOTAL SHIPMENTS", "10,000", "Across 6 origin cities",  ACCENT)
+    with k2: kpi("DELAYED RATE",    "12.5%",  "1,247 late shipments",    ACCENT2)
+    with k3: kpi("AVG DELAY DAYS",  "0.95",   "Max observed: 20 days",   ACCENT3)
+    with k4: kpi("MODEL ROC-AUC",   "0.941",  "XGBoost — best performer",BLUE)
 
-    st.markdown("<div style='margin-top:16px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
-    # Row 1: Route bar + Donut
-    col_a, col_b = st.columns([3, 2])
-    with col_a:
-        with st.container():
-            section_card("Average Delay by Route Type", "MEAN DELAY DAYS PER ROUTE")
-            fig, ax = plt.subplots(figsize=(7, 3.4))
-            bars = ax.bar(ROUTE_LABELS, ROUTE_DELAYS, color=ROUTE_COLORS, width=0.52, zorder=3)
-            for bar, val in zip(bars, ROUTE_DELAYS):
-                ax.text(bar.get_x()+bar.get_width()/2, val+0.03, f"{val}d",
-                        ha='center', color=TEXT, fontsize=10, fontweight='bold')
-            ax.set_ylim(0, 1.85)
-            ax.grid(axis='y', zorder=0)
-            ax.tick_params(labelsize=10)
-            _spine(ax)
-            show_fig(fig)
+    c1, c2 = st.columns([3, 2])
+    with c1:
+        card_title("Average Delay by Route Type", "MEAN DELAY DAYS PER ROUTE")
+        fig = base_fig(300)
+        fig.add_trace(go.Bar(
+            x=ROUTE_LABELS, y=ROUTE_DELAYS,
+            marker_color=ROUTE_COLORS, marker_line_width=0,
+            text=[f"{v}d" for v in ROUTE_DELAYS],
+            textposition="outside", textfont=dict(color=TEXT, size=11),
+            hovertemplate="%{x}: <b>%{y}d</b><extra></extra>",
+        ))
+        fig.update_layout(yaxis=dict(range=[0, 1.85], gridcolor=BORDER),
+                          xaxis=dict(gridcolor="rgba(0,0,0,0)"))
+        render(fig, "route_bar")
 
-    with col_b:
-        with st.container():
-            section_card("Delivery Status", "DISTRIBUTION ACROSS ALL SHIPMENTS")
-            fig, ax = plt.subplots(figsize=(4.5, 3.4))
-            wedges, texts, autotexts = ax.pie(
-                [87.5, 12.5], colors=[ACCENT, ACCENT2],
-                startangle=90, wedgeprops=dict(width=0.44),
-                autopct='%1.1f%%', pctdistance=0.75
-            )
-            for at in autotexts:
-                at.set_color(BG); at.set_fontsize(10); at.set_fontweight('bold')
-            ax.legend(
-                wedges, ["On Time  87.5%", "Delayed  12.5%"],
-                loc="lower center", ncol=2, frameon=False, fontsize=9,
-                labelcolor=[ACCENT, ACCENT2],
-            )
-            show_fig(fig)
+    with c2:
+        card_title("Delivery Status", "DISTRIBUTION ACROSS ALL SHIPMENTS")
+        fig = go.Figure(go.Pie(
+            values=[87.5, 12.5], labels=["On Time", "Delayed"],
+            hole=0.62, marker=dict(colors=[ACCENT, ACCENT2],
+                                   line=dict(width=0)),
+            textinfo="percent",
+            textfont=dict(color=BG, size=12),
+            hovertemplate="%{label}: <b>%{percent}</b><extra></extra>",
+        ))
+        fig.update_layout(
+            height=300, paper_bgcolor=CARD, plot_bgcolor=CARD,
+            margin=dict(l=12, r=12, t=36, b=12),
+            showlegend=True,
+            legend=dict(orientation="h", x=0.5, xanchor="center", y=-0.08,
+                        font=dict(color=MUTED, size=11, family="Space Mono")),
+            annotations=[dict(text="87.5%<br>On Time", x=0.5, y=0.5,
+                              font=dict(size=14, color=ACCENT, family="Space Mono"),
+                              showarrow=False)],
+        )
+        render(fig, "donut")
 
-    # Row 2: Product + Origin
-    col_c, col_d = st.columns(2)
-    with col_c:
-        section_card("Avg Delay by Product Category", "WHICH PRODUCTS FACE HIGHEST RISK")
-        fig, ax = plt.subplots(figsize=(6, 3.8))
-        bars = ax.barh(PRODUCT_LABELS, PRODUCT_DELAYS, color=PRODUCT_COLORS, height=0.52, zorder=3)
-        for bar, val in zip(bars, PRODUCT_DELAYS):
-            ax.text(val+0.01, bar.get_y()+bar.get_height()/2, f"{val}d",
-                    va='center', color=TEXT, fontsize=9, fontweight='bold')
-        ax.set_xlim(0, 1.65); ax.invert_yaxis()
-        ax.grid(axis='x', zorder=0); ax.tick_params(labelsize=9); _spine(ax)
-        show_fig(fig)
+    c3, c4 = st.columns(2)
+    with c3:
+        card_title("Avg Delay by Product Category", "WHICH PRODUCTS FACE HIGHEST RISK")
+        fig = base_fig(320)
+        fig.add_trace(go.Bar(
+            y=PRODUCT_LABELS, x=PRODUCT_DELAYS, orientation='h',
+            marker_color=PRODUCT_COLORS, marker_line_width=0,
+            text=[f"{v}d" for v in PRODUCT_DELAYS],
+            textposition="outside", textfont=dict(color=TEXT, size=10),
+            hovertemplate="%{y}: <b>%{x}d</b><extra></extra>",
+        ))
+        fig.update_layout(xaxis=dict(range=[0, 1.65], gridcolor=BORDER),
+                          yaxis=dict(autorange="reversed",
+                                     gridcolor="rgba(0,0,0,0)"))
+        render(fig, "product_bar")
 
-    with col_d:
-        section_card("Avg Delay by Origin City", "SOURCE RISK OVERVIEW")
-        fig, ax = plt.subplots(figsize=(6, 3.8))
-        bars = ax.barh(ORIGIN_LABELS, ORIGIN_DELAYS,
-                       color=ORIGIN_COLORS, height=0.52, zorder=3)
-        for bar, val in zip(bars, ORIGIN_DELAYS):
-            ax.text(val+0.01, bar.get_y()+bar.get_height()/2, f"{val}d",
-                    va='center', color=TEXT, fontsize=9, fontweight='bold')
-        ax.set_xlim(0, 1.65); ax.invert_yaxis()
-        ax.grid(axis='x', zorder=0); ax.tick_params(labelsize=9); _spine(ax)
-        show_fig(fig)
+    with c4:
+        card_title("Avg Delay by Origin City", "SOURCE RISK OVERVIEW")
+        fig = base_fig(320)
+        fig.add_trace(go.Bar(
+            y=ORIGIN_LABELS, x=ORIGIN_DELAYS, orientation='h',
+            marker_color=ORIGIN_COLORS, marker_line_width=0,
+            text=[f"{v}d" for v in ORIGIN_DELAYS],
+            textposition="outside", textfont=dict(color=TEXT, size=10),
+            hovertemplate="%{y}: <b>%{x}d</b><extra></extra>",
+        ))
+        fig.update_layout(xaxis=dict(range=[0, 1.65], gridcolor=BORDER),
+                          yaxis=dict(autorange="reversed",
+                                     gridcolor="rgba(0,0,0,0)"))
+        render(fig, "origin_bar")
 
-    # Row 3: Trend + Mode
-    col_e, col_f = st.columns([3, 2])
-    with col_e:
-        section_card("Shipment Volume & Delay Trend", "2024–2025 MONTHLY OVERVIEW")
-        fig, ax1 = plt.subplots(figsize=(7, 3.2))
-        ax1.fill_between(MONTHS, VOL, alpha=0.08, color=BLUE)
-        ax1.plot(MONTHS, VOL, color=BLUE, linewidth=2.5, marker='o',
-                 markersize=5, label="Volume", zorder=3)
-        ax2 = ax1.twinx()
-        ax2.plot(MONTHS, DLY, color=ACCENT2, linewidth=2, linestyle='--',
-                 marker='s', markersize=5, label="Delayed", zorder=3)
-        ax2.tick_params(colors=MUTED, labelsize=9)
-        ax2.spines["right"].set_color(BORDER)
-        ax2.spines["top"].set_color(BORDER)
-        ax2.spines["left"].set_color(BORDER)
-        ax2.spines["bottom"].set_color(BORDER)
-        ax2.set_ylabel("Delayed Count", color=MUTED, fontsize=9)
-        ax1.set_ylabel("Volume", color=MUTED, fontsize=9)
-        ax1.grid(axis='y'); ax1.tick_params(labelsize=9); _spine(ax1)
-        lines1, labels1 = ax1.get_legend_handles_labels()
-        lines2, labels2 = ax2.get_legend_handles_labels()
-        ax1.legend(lines1+lines2, labels1+labels2, frameon=False,
-                   fontsize=9, labelcolor=[BLUE, ACCENT2], loc='upper left')
-        show_fig(fig)
+    c5, c6 = st.columns([3, 2])
+    with c5:
+        card_title("Shipment Volume & Delay Trend", "2024–2025 MONTHLY OVERVIEW")
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fig.add_trace(go.Scatter(
+            x=MONTHS, y=VOL, name="Volume",
+            line=dict(color=BLUE, width=2.5),
+            fill='tozeroy', fillcolor="rgba(61,158,255,0.07)",
+            mode='lines+markers', marker=dict(size=5, color=BLUE),
+            hovertemplate="Volume: <b>%{y}</b><extra></extra>",
+        ), secondary_y=False)
+        fig.add_trace(go.Scatter(
+            x=MONTHS, y=DLY, name="Delayed",
+            line=dict(color=ACCENT2, width=2, dash='dash'),
+            mode='lines+markers',
+            marker=dict(size=5, color=ACCENT2, symbol='square'),
+            hovertemplate="Delayed: <b>%{y}</b><extra></extra>",
+        ), secondary_y=True)
+        fig.update_layout(
+            height=300, paper_bgcolor=CARD, plot_bgcolor=CARD,
+            margin=dict(l=12, r=12, t=36, b=12),
+            showlegend=True,
+            legend=dict(orientation="h", x=0, y=1.12,
+                        font=dict(color=MUTED, size=10, family="Space Mono")),
+            xaxis=dict(gridcolor="rgba(0,0,0,0)", linecolor=BORDER),
+            yaxis=dict(gridcolor=BORDER, linecolor=BORDER),
+            yaxis2=dict(gridcolor="rgba(0,0,0,0)", linecolor=BORDER),
+        )
+        render(fig, "trend")
 
-    with col_f:
-        section_card("Transport Mode vs Avg Delay", "AIR vs SEA COMPARISON")
-        fig, ax = plt.subplots(figsize=(4.5, 3.2))
-        ax.barh(["Sea", "Air"], [1.12, 0.62], color=[BLUE, ACCENT], height=0.4, zorder=3)
-        for i, v in enumerate([1.12, 0.62]):
-            ax.text(v+0.02, i, f"{v}d", va='center', color=TEXT,
-                    fontsize=11, fontweight='bold')
-        ax.set_xlim(0, 1.5)
-        ax.tick_params(axis='y', labelsize=12, labelcolor=TEXT)
-        ax.grid(axis='x', zorder=0); _spine(ax)
-        show_fig(fig)
+    with c6:
+        card_title("Transport Mode vs Avg Delay", "AIR vs SEA COMPARISON")
+        fig = base_fig(300)
+        fig.add_trace(go.Bar(
+            y=["Sea", "Air"], x=[1.12, 0.62], orientation='h',
+            marker_color=[BLUE, ACCENT], marker_line_width=0,
+            text=["1.12d", "0.62d"],
+            textposition="outside", textfont=dict(color=TEXT, size=12),
+            hovertemplate="%{y}: <b>%{x}d</b><extra></extra>",
+        ))
+        fig.update_layout(
+            xaxis=dict(range=[0, 1.5], gridcolor=BORDER),
+            yaxis=dict(tickfont=dict(color=TEXT, size=13),
+                       gridcolor="rgba(0,0,0,0)"),
+        )
+        render(fig, "mode_bar")
 
 
-# ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 # PAGE 2 — RISK PREDICTOR
-# ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 elif page == "⚡  Risk Predictor":
     page_header("Shipment", "Risk Predictor",
-                "POWERED BY XGBOOST  ·  FILL IN SHIPMENT DETAILS TO ASSESS DELAY RISK",
+                "POWERED BY XGBOOST  ·  FILL IN DETAILS TO ASSESS DELAY RISK",
                 "● Model Ready", ACCENT)
-    st.markdown("<div style='margin-top:16px'></div>", unsafe_allow_html=True)
 
-    col_form, col_result = st.columns([1, 1], gap="large")
+    col_form, col_result = st.columns(2, gap="large")
 
     with col_form:
         st.markdown(f"""
-        <div style='background:{CARD};border:1px solid {BORDER};border-radius:14px;
-                    padding:22px 24px 10px'>
+        <div style='background:{CARD};border:1px solid {BORDER};
+                    border-radius:14px;padding:22px 24px 4px'>
           <div style='font-family:"Space Mono",monospace;font-size:10px;
-                      color:{MUTED};letter-spacing:1.5px;margin-bottom:16px'>
-            SHIPMENT PARAMETERS
-          </div>
+                      color:{MUTED};letter-spacing:1.5px;
+                      margin-bottom:14px'>SHIPMENT PARAMETERS</div>
         """, unsafe_allow_html=True)
 
-        r1c1, r1c2 = st.columns(2)
-        with r1c1:
-            origin = st.selectbox("Origin City",
-                ["Shanghai, CN","Shenzhen, CN","Tokyo, JP","Hamburg, DE","Mumbai, IN","Santos, BR"])
-        with r1c2:
-            dest = st.selectbox("Destination City",
-                ["Los Angeles, US","Rotterdam, NL","Singapore, SG","New York, US","Felixstowe, UK","Shanghai, CN"])
+        fa, fb = st.columns(2)
+        with fa:
+            origin = st.selectbox("Origin City", [
+                "Shanghai, CN","Shenzhen, CN","Tokyo, JP",
+                "Hamburg, DE","Mumbai, IN","Santos, BR"])
+        with fb:
+            dest = st.selectbox("Destination", [
+                "Los Angeles, US","Rotterdam, NL","Singapore, SG",
+                "New York, US","Felixstowe, UK","Shanghai, CN"])
 
-        r2c1, r2c2 = st.columns(2)
-        with r2c1:
-            route = st.selectbox("Route Type", ["Pacific","Atlantic","Suez","Intra-Asia","Commodity"])
-        with r2c2:
+        fc2, fd = st.columns(2)
+        with fc2:
+            route = st.selectbox("Route Type",
+                ["Pacific","Atlantic","Suez","Intra-Asia","Commodity"])
+        with fd:
             mode = st.selectbox("Transport Mode", ["Sea","Air"])
 
-        r3c1, r3c2 = st.columns(2)
-        with r3c1:
-            product = st.selectbox("Product Category",
-                ["Textiles","Pharmaceuticals","Semiconductors","Consumer Electronics","Raw Materials","Perishables"])
-        with r3c2:
-            base_lead = st.number_input("Base Lead Time (days)", min_value=1, max_value=60, value=18)
+        fe, ff = st.columns(2)
+        with fe:
+            product = st.selectbox("Product Category", [
+                "Textiles","Pharmaceuticals","Semiconductors",
+                "Consumer Electronics","Raw Materials","Perishables"])
+        with ff:
+            base_lead = st.number_input("Base Lead Time (days)",
+                                        min_value=1, max_value=60, value=18)
 
-        r4c1, r4c2 = st.columns(2)
-        with r4c1:
-            sched_lead = st.number_input("Scheduled Lead Time (days)", min_value=1, max_value=70, value=21)
-        with r4c2:
-            geo = st.number_input("Geopolitical Risk (0–1)", min_value=0.1, max_value=0.9,
+        fg, fh = st.columns(2)
+        with fg:
+            sched_lead = st.number_input("Scheduled Lead Time (days)",
+                                         min_value=1, max_value=70, value=21)
+        with fh:
+            geo = st.number_input("Geopolitical Risk (0–1)",
+                                  min_value=0.1, max_value=0.9,
                                   value=0.55, step=0.01, format="%.2f")
 
-        r5c1, r5c2 = st.columns(2)
-        with r5c1:
-            weather = st.number_input("Weather Severity (0–10)", min_value=0.0, max_value=10.0,
+        fi, fj = st.columns(2)
+        with fi:
+            weather = st.number_input("Weather Severity (0–10)",
+                                      min_value=0.0, max_value=10.0,
                                       value=4.5, step=0.1, format="%.1f")
-        with r5c2:
-            inflation = st.number_input("Inflation Rate (%)", value=3.5, step=0.1, format="%.1f")
+        with fj:
+            inflation = st.number_input("Inflation Rate (%)",
+                                        value=3.5, step=0.1, format="%.1f")
 
-        r6c1, r6c2 = st.columns(2)
-        with r6c1:
-            cost = st.number_input("Shipping Cost (USD)", min_value=0, value=5000, step=100)
-        with r6c2:
-            weight = st.number_input("Order Weight (kg)", min_value=100, value=3000, step=100)
+        fk, fl = st.columns(2)
+        with fk:
+            cost = st.number_input("Shipping Cost (USD)",
+                                   min_value=0, value=5000, step=100)
+        with fl:
+            weight = st.number_input("Order Weight (kg)",
+                                     min_value=100, value=3000, step=100)
 
         st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
-        predict_clicked = st.button("⚡  PREDICT DELAY RISK")
+        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+        clicked = st.button("⚡  PREDICT DELAY RISK")
 
-    # ── Result panel ────────────────────────────────────────
     with col_result:
-        if not predict_clicked:
+        if not clicked:
             st.markdown(f"""
-            <div style='background:{CARD};border:1px solid {BORDER};border-radius:14px;
-                        padding:60px 30px;text-align:center;min-height:420px;
-                        display:flex;flex-direction:column;align-items:center;justify-content:center'>
-              <div style='font-size:52px;opacity:.3'>🔍</div>
+            <div style='background:{CARD};border:1px solid {BORDER};
+                        border-radius:14px;padding:80px 30px;text-align:center'>
+              <div style='font-size:56px;opacity:.25'>🔍</div>
               <div style='font-family:"Space Mono",monospace;font-size:11px;
-                          color:{MUTED};margin-top:16px;line-height:1.8'>
-                Fill in shipment parameters<br>and click Predict to see<br>real-time risk assessment
+                          color:{MUTED};margin-top:18px;line-height:1.9'>
+                Fill in shipment parameters<br>and click Predict to see<br>
+                real-time risk assessment
               </div>
-            </div>
-            """, unsafe_allow_html=True)
+            </div>""", unsafe_allow_html=True)
         else:
-            # ── Heuristic model ────────────────────────────
+            # Heuristic model
             score = 0.05
             buffer = sched_lead - base_lead
-            if buffer <= 1:   score += 0.30
+            if   buffer <= 1: score += 0.30
             elif buffer <= 2: score += 0.18
             elif buffer <= 4: score += 0.08
             else:             score += 0.01
-
-            route_risk = {"Suez":0.16,"Commodity":0.12,"Pacific":0.08,"Atlantic":0.06,"Intra-Asia":0.04}
-            score += route_risk.get(route, 0.06)
-            score += 0.06 if mode=="Sea" else 0.02
-            score += 0.08 if geo>0.7 else 0.04 if geo>0.5 else 0.01
-            score += 0.07 if weather>7 else 0.04 if weather>5 else 0.01
-            prod_risk = {"Perishables":0.05,"Semiconductors":0.04,
-                         "Consumer Electronics":0.03,"Pharmaceuticals":0.02}
-            score += prod_risk.get(product, 0.01)
-            origin_risk = {"Santos, BR":0.06,"Mumbai, IN":0.05,"Shenzhen, CN":0.03}
-            score += origin_risk.get(origin, 0.01)
+            score += ROUTE_RISK.get(route, 0.06)
+            score += 0.06 if mode == "Sea" else 0.02
+            score += 0.08 if geo > 0.7 else 0.04 if geo > 0.5 else 0.01
+            score += 0.07 if weather > 7 else 0.04 if weather > 5 else 0.01
+            score += PROD_RISK.get(product, 0.01)
+            score += ORIGIN_RISK.get(origin, 0.01)
             score = min(max(score, 0.02), 0.97)
-            pct = round(score * 100)
+            pct   = round(score * 100)
 
-            color = ACCENT2 if score>0.5 else ACCENT3 if score>0.25 else ACCENT
-            label = ("🔴  HIGH DELAY RISK" if score>0.5
-                     else "🟡  MODERATE RISK" if score>0.25
+            color = ACCENT2 if score > 0.5 else ACCENT3 if score > 0.25 else ACCENT
+            label = ("🔴  HIGH DELAY RISK" if score > 0.5
+                     else "🟡  MODERATE RISK" if score > 0.25
                      else "🟢  LOW RISK")
-            desc = (
-                f"{pct}% probability of delay detected. Tight lead time buffer and high-risk route/origin combination. Consider expedited air freight or alternate routing."
-                if score>0.5 else
-                f"{pct}% delay probability. Some risk factors present — monitor geopolitical and weather conditions. Standard mitigation recommended."
-                if score>0.25 else
-                f"Only {pct}% delay probability. Shipment parameters look healthy and within safe thresholds. Proceed with standard shipping."
+            desc  = (
+                f"{pct}% probability of delay. Tight lead time buffer and "
+                f"high-risk route/origin combination. Consider expedited air freight."
+                if score > 0.5 else
+                f"{pct}% delay probability. Some risk factors present — monitor "
+                f"geopolitical and weather conditions."
+                if score > 0.25 else
+                f"Only {pct}% delay probability. Shipment parameters look healthy. "
+                f"Proceed with standard shipping."
             )
 
-            factors = [
-                ("Lead Time Buffer",    min(90 if buffer<=1 else 60 if buffer<=2 else 30 if buffer<=4 else 10, 100)),
-                ("Route Risk",          round(route_risk.get(route,0.06)/0.16*100)),
-                ("Geopolitical Risk",   round(geo*100)),
-                ("Weather Severity",    round(weather*10)),
-                ("Transport Mode Risk", 65 if mode=="Sea" else 25),
-                ("Product Category",    round((prod_risk.get(product,0.01)/0.05)*60+10)),
-            ]
+            # Gauge
+            fig = go.Figure(go.Indicator(
+                mode="gauge+number",
+                value=pct,
+                number=dict(suffix="%",
+                            font=dict(size=42, color=color, family="Space Mono")),
+                gauge=dict(
+                    axis=dict(range=[0, 100], tickcolor=MUTED,
+                              tickfont=dict(color=MUTED, size=10)),
+                    bar=dict(color=color, thickness=0.28),
+                    bgcolor=DIM,
+                    borderwidth=0,
+                    steps=[
+                        dict(range=[0, 25],   color="rgba(0,255,178,0.08)"),
+                        dict(range=[25, 50],  color="rgba(255,184,0,0.08)"),
+                        dict(range=[50, 100], color="rgba(255,77,109,0.08)"),
+                    ],
+                    threshold=dict(line=dict(color=color, width=3),
+                                   thickness=0.8, value=pct),
+                ),
+            ))
+            fig.update_layout(
+                height=260, paper_bgcolor=CARD, plot_bgcolor=CARD,
+                margin=dict(l=30, r=30, t=20, b=10),
+                font=dict(color=MUTED, family="Space Mono"),
+            )
+            render(fig, "gauge")
 
-            # Gauge figure
-            fig_g, ax_g = plt.subplots(figsize=(5, 2.8))
-            theta_bg = np.linspace(np.pi, 0, 300)
-            ax_g.plot(np.cos(theta_bg), np.sin(theta_bg),
-                      color=DIM, linewidth=18, solid_capstyle='round', zorder=1)
-            theta_fill = np.linspace(np.pi, np.pi - score*np.pi, 300)
-            ax_g.plot(np.cos(theta_fill), np.sin(theta_fill),
-                      color=color, linewidth=18, solid_capstyle='round', zorder=2)
-            ax_g.text(0, 0.08, f"{pct}%", ha='center', va='center',
-                      fontsize=36, fontweight='bold', color=color, family='monospace')
-            ax_g.text(0, -0.22, "DELAY PROBABILITY",
-                      ha='center', color=MUTED, fontsize=9, family='monospace')
-            ax_g.set_xlim(-1.25, 1.25); ax_g.set_ylim(-0.4, 1.2)
-            ax_g.set_aspect('equal'); ax_g.axis('off')
-            show_fig(fig_g)
-
-            # Risk label + description
             st.markdown(f"""
-            <div style='text-align:center;margin:-8px 0 12px'>
+            <div style='text-align:center;margin:-4px 0 16px'>
               <div style='font-size:20px;font-weight:800;color:{color};
                           font-family:Syne,sans-serif'>{label}</div>
               <div style='font-family:"Space Mono",monospace;font-size:10px;
-                          color:{MUTED};margin-top:8px;line-height:1.7;
-                          max-width:380px;margin-left:auto;margin-right:auto'>{desc}</div>
-            </div>
-            """, unsafe_allow_html=True)
+                          color:{MUTED};margin-top:8px;line-height:1.8;
+                          max-width:380px;margin-left:auto;margin-right:auto'>
+                {desc}</div>
+            </div>""", unsafe_allow_html=True)
 
-            # Factor bars
+            factors = [
+                ("Lead Time Buffer",
+                 min(90 if buffer<=1 else 60 if buffer<=2
+                     else 30 if buffer<=4 else 10, 100)),
+                ("Route Risk",
+                 round(ROUTE_RISK.get(route, 0.06) / 0.16 * 100)),
+                ("Geopolitical Risk",  round(geo * 100)),
+                ("Weather Severity",   round(weather * 10)),
+                ("Transport Mode",     65 if mode == "Sea" else 25),
+                ("Product Category",
+                 round((PROD_RISK.get(product, 0.01) / 0.05) * 60 + 10)),
+            ]
             st.markdown(f"""
             <div style='font-family:"Space Mono",monospace;font-size:9px;
-                        color:{MUTED};letter-spacing:1.5px;margin:12px 0 8px'>
-              RISK FACTOR BREAKDOWN
-            </div>
-            """, unsafe_allow_html=True)
-
+                        color:{MUTED};letter-spacing:1.5px;margin-bottom:10px'>
+              RISK FACTOR BREAKDOWN</div>""", unsafe_allow_html=True)
             for fname, fval in factors:
-                bar_color = ACCENT2 if fval>70 else ACCENT3 if fval>40 else ACCENT
+                bc = ACCENT2 if fval > 70 else ACCENT3 if fval > 40 else ACCENT
                 st.markdown(f"""
                 <div style='background:{SURFACE};border:1px solid {BORDER};
-                            border-radius:8px;padding:8px 12px;margin-bottom:6px;
-                            display:flex;align-items:center;gap:10px'>
-                  <div style='min-width:160px;font-size:12px;font-weight:600;
+                            border-radius:8px;padding:8px 14px;margin-bottom:6px;
+                            display:flex;align-items:center;gap:12px'>
+                  <div style='min-width:150px;font-size:12px;font-weight:600;
                               color:{TEXT};font-family:Syne,sans-serif'>{fname}</div>
-                  <div style='flex:1;background:{DIM};height:6px;border-radius:3px;overflow:hidden'>
-                    <div style='width:{fval}%;height:100%;background:{bar_color};
+                  <div style='flex:1;background:{DIM};height:6px;
+                              border-radius:3px;overflow:hidden'>
+                    <div style='width:{fval}%;height:100%;background:{bc};
                                 border-radius:3px'></div>
                   </div>
-                  <div style='min-width:36px;text-align:right;font-family:"Space Mono",
-                              monospace;font-size:11px;color:{MUTED}'>{fval}%</div>
-                </div>
-                """, unsafe_allow_html=True)
+                  <div style='min-width:34px;text-align:right;
+                              font-family:"Space Mono",monospace;
+                              font-size:11px;color:{MUTED}'>{fval}%</div>
+                </div>""", unsafe_allow_html=True)
 
 
-# ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 # PAGE 3 — EDA INSIGHTS
-# ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 elif page == "∿  EDA Insights":
     page_header("Exploratory Data", "Analysis",
                 "KEY PATTERNS  ·  CORRELATIONS  ·  RISK DRIVERS",
                 "10K Shipments", BLUE)
-    st.markdown("<div style='margin-top:16px'></div>", unsafe_allow_html=True)
 
-    # Stat chips
-    chips = [
+    chips_data = [
         ("DATASET SIZE",     "10,000",  "Shipment records",     ACCENT),
         ("FEATURES USED",    "16",      "Non-leaky predictors", BLUE),
         ("DELAY RATE",       "12.5%",   "Class imbalance ~1:7", ACCENT2),
@@ -614,196 +584,217 @@ elif page == "∿  EDA Insights":
         ("COST CORRELATION", "~0.01",   "No effect on delay",   MUTED),
         ("ROUTES COVERED",   "5",       "Pacific, Suez, Atl…",  ACCENT),
     ]
-    chip_cols = st.columns(6)
-    for col, (lbl, val, sub, color) in zip(chip_cols, chips):
+    for col, (lbl, val, sub, color) in zip(st.columns(6), chips_data):
         with col:
             st.markdown(f"""
-            <div style='background:{CARD};border:1px solid {BORDER};border-radius:10px;
-                        padding:14px 16px'>
+            <div style='background:{CARD};border:1px solid {BORDER};
+                        border-radius:10px;padding:14px 16px'>
               <div style='font-family:"Space Mono",monospace;font-size:8px;
                           color:{MUTED};letter-spacing:1.5px'>{lbl}</div>
               <div style='font-size:22px;font-weight:800;color:{color};
                           font-family:Syne,sans-serif;letter-spacing:-1px'>{val}</div>
-              <div style='font-size:10px;color:{MUTED};font-family:"Space Mono",monospace'>{sub}</div>
-            </div>
-            """, unsafe_allow_html=True)
+              <div style='font-size:10px;color:{MUTED};
+                          font-family:"Space Mono",monospace'>{sub}</div>
+            </div>""", unsafe_allow_html=True)
 
-    st.markdown("<div style='margin-top:16px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
-    # Delay histogram + Correlation
-    col1, col2 = st.columns(2)
-    with col1:
-        section_card("Delay Day Distribution", "HISTOGRAM OF DELAY DAYS")
-        fig, ax = plt.subplots(figsize=(6, 3.4))
-        hist_colors = [ACCENT if b==0 else ACCENT3 if b<5 else ACCENT2 for b in DELAY_BINS]
-        ax.bar([str(b) for b in DELAY_BINS], DELAY_CNTS, color=hist_colors, width=0.7, zorder=3)
-        ax.set_xlabel("Delay Days", color=MUTED, fontsize=9)
-        ax.grid(axis='y', zorder=0); ax.tick_params(labelsize=9); _spine(ax)
-        show_fig(fig)
+    e1, e2 = st.columns(2)
+    with e1:
+        card_title("Delay Day Distribution", "HISTOGRAM OF DELAY DAYS")
+        hist_colors = [ACCENT if b == 0 else ACCENT3 if b < 5
+                       else ACCENT2 for b in DELAY_BINS]
+        fig = base_fig(310)
+        fig.add_trace(go.Bar(
+            x=[str(b) for b in DELAY_BINS], y=DELAY_CNTS,
+            marker_color=hist_colors, marker_line_width=0,
+            hovertemplate="Day %{x}: <b>%{y:,}</b> shipments<extra></extra>",
+        ))
+        fig.update_layout(
+            xaxis=dict(title="Delay Days", gridcolor="rgba(0,0,0,0)"),
+            yaxis=dict(gridcolor=BORDER),
+        )
+        render(fig, "hist")
 
-    with col2:
-        section_card("Feature Correlation to Delay Days", "NUMERIC FEATURES RANKED")
-        fig, ax = plt.subplots(figsize=(6, 3.4))
-        bars = ax.barh(CORR_NAMES, CORR_VALS, color=CORR_COLS, height=0.52, zorder=3)
-        for bar, val in zip(bars, CORR_VALS):
-            ax.text(val+0.008, bar.get_y()+bar.get_height()/2, f"{val:.2f}",
-                    va='center', color=TEXT, fontsize=9, fontweight='bold')
-        ax.set_xlim(0, 1.0); ax.invert_yaxis()
-        ax.grid(axis='x', zorder=0); ax.tick_params(labelsize=9); _spine(ax)
-        show_fig(fig)
+    with e2:
+        card_title("Feature Correlation to Delay Days", "NUMERIC FEATURES RANKED")
+        fig = base_fig(310)
+        fig.add_trace(go.Bar(
+            y=CORR_NAMES, x=CORR_VALS, orientation='h',
+            marker_color=CORR_COLS, marker_line_width=0,
+            text=[f"{v:.2f}" for v in CORR_VALS],
+            textposition="outside", textfont=dict(color=TEXT, size=10),
+            hovertemplate="%{y}: <b>%{x:.2f}</b><extra></extra>",
+        ))
+        fig.update_layout(
+            xaxis=dict(range=[0, 1.0], gridcolor=BORDER),
+            yaxis=dict(autorange="reversed", gridcolor="rgba(0,0,0,0)"),
+        )
+        render(fig, "corr")
 
-    # Key findings table
-    st.markdown("<div style='margin-top:6px'></div>", unsafe_allow_html=True)
-    section_card("Key EDA Findings", "ANALYST NOTES FROM EXPLORATION")
-
+    card_title("Key EDA Findings", "ANALYST NOTES FROM EXPLORATION")
     findings = [
-        ("Route Suez has highest avg delay",         "Route_Type",          "HIGH",  ACCENT2),
-        ("Sea transport ~1.8× more delay than Air",  "Transportation_Mode", "HIGH",  ACCENT2),
-        ("Perishables face highest category risk",   "Product_Category",    "HIGH",  ACCENT2),
-        ("Santos, BR origin is highest risk city",   "Origin_City",         "MED",   ACCENT3),
-        ("Shipping cost has near-zero correlation",  "Shipping_Cost_USD",   "LOW",   BLUE),
-        ("Weather severity weakly correlates",       "Weather_Severity",    "LOW",   BLUE),
-        ("Port Congestion is most common event",     "Disruption_Event",    "HIGH",  ACCENT2),
-        ("Class imbalance: 87.5% vs 12.5%",          "Delivery_Status",     "NOTE",  MUTED),
+        ("Route Suez has highest avg delay",        "Route_Type",          "HIGH",  ACCENT2),
+        ("Sea transport ~1.8× more delay than Air", "Transportation_Mode", "HIGH",  ACCENT2),
+        ("Perishables face highest category risk",  "Product_Category",    "HIGH",  ACCENT2),
+        ("Santos, BR origin is highest risk city",  "Origin_City",         "MED",   ACCENT3),
+        ("Shipping cost has near-zero correlation", "Shipping_Cost_USD",   "LOW",   BLUE),
+        ("Weather severity weakly correlates",      "Weather_Severity",    "LOW",   BLUE),
+        ("Port Congestion is most common event",    "Disruption_Event",    "HIGH",  ACCENT2),
+        ("Class imbalance: 87.5% vs 12.5%",         "Delivery_Status",     "NOTE",  MUTED),
     ]
+    rows_html = "".join(f"""
+    <div style='display:grid;grid-template-columns:2fr 1.2fr 80px;
+                background:{"" if i % 2 else SURFACE};
+                padding:10px 16px;gap:12px;
+                border-bottom:1px solid {BORDER};align-items:center'>
+      <div style='font-size:12px;color:{TEXT};
+                  font-family:Syne,sans-serif'>{f}</div>
+      <div style='font-family:"Space Mono",monospace;
+                  font-size:10px;color:{BLUE}'>{v}</div>
+      <div style='font-size:10px;font-weight:700;color:{c};
+                  font-family:"Space Mono",monospace'>{imp}</div>
+    </div>""" for i, (f, v, imp, c) in enumerate(findings))
 
-    header_html = f"""
-    <div style='display:grid;grid-template-columns:2fr 1fr 80px;
-                background:{DIM};border-radius:8px 8px 0 0;padding:8px 16px;
-                font-family:"Space Mono",monospace;font-size:9px;
-                color:{MUTED};letter-spacing:1.5px;gap:12px'>
-      <div>FINDING</div><div>VARIABLE</div><div>IMPACT</div>
-    </div>"""
-    rows_html = ""
-    for i, (finding, var, impact, color) in enumerate(findings):
-        bg = CARD if i%2==0 else f"{SURFACE}"
-        rows_html += f"""
-        <div style='display:grid;grid-template-columns:2fr 1fr 80px;
-                    background:{bg};padding:10px 16px;gap:12px;
-                    border-bottom:1px solid {BORDER};align-items:center'>
-          <div style='font-size:12px;color:{TEXT};font-family:Syne,sans-serif'>{finding}</div>
-          <div style='font-family:"Space Mono",monospace;font-size:10px;color:{BLUE}'>{var}</div>
-          <div style='font-size:10px;font-weight:700;color:{color};
-                      font-family:"Space Mono",monospace'>{impact}</div>
-        </div>"""
     st.markdown(f"""
-    <div style='border:1px solid {BORDER};border-radius:10px;overflow:hidden;margin-bottom:16px'>
-      {header_html}{rows_html}
-    </div>
-    """, unsafe_allow_html=True)
+    <div style='border:1px solid {BORDER};border-radius:10px;
+                overflow:hidden;margin-bottom:16px'>
+      <div style='display:grid;grid-template-columns:2fr 1.2fr 80px;
+                  background:{DIM};padding:8px 16px;
+                  font-family:"Space Mono",monospace;font-size:9px;
+                  color:{MUTED};letter-spacing:1.5px;gap:12px'>
+        <div>FINDING</div><div>VARIABLE</div><div>IMPACT</div>
+      </div>{rows_html}
+    </div>""", unsafe_allow_html=True)
 
-    # Disruption chart
-    section_card("Disruption Event Frequency", "COUNT PER EVENT TYPE")
-    fig, ax = plt.subplots(figsize=(10, 2.8))
-    bars = ax.bar(DISRUPT_LABELS, DISRUPT_CNTS, color=DISRUPT_COLORS, width=0.5, zorder=3)
-    for bar, val in zip(bars, DISRUPT_CNTS):
-        ax.text(bar.get_x()+bar.get_width()/2, val+60, f"{val:,}",
-                ha='center', color=TEXT, fontsize=10, fontweight='bold')
-    ax.grid(axis='y', zorder=0); ax.tick_params(labelsize=10); _spine(ax)
-    ax.set_ylim(0, max(DISRUPT_CNTS)*1.18)
-    show_fig(fig)
+    card_title("Disruption Event Frequency", "COUNT PER EVENT TYPE")
+    fig = base_fig(260)
+    fig.add_trace(go.Bar(
+        x=DISRUPT_LABELS, y=DISRUPT_CNTS,
+        marker_color=DISRUPT_COLORS, marker_line_width=0,
+        text=[f"{v:,}" for v in DISRUPT_CNTS],
+        textposition="outside", textfont=dict(color=TEXT, size=11),
+        hovertemplate="%{x}: <b>%{y:,}</b><extra></extra>",
+    ))
+    fig.update_layout(
+        yaxis=dict(range=[0, max(DISRUPT_CNTS) * 1.2], gridcolor=BORDER),
+        xaxis=dict(gridcolor="rgba(0,0,0,0)"),
+    )
+    render(fig, "disrupt")
 
 
-# ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 # PAGE 4 — MODEL COMPARISON
-# ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 elif page == "▤  Model Comparison":
     page_header("Model", "Comparison",
                 "5 CLASSIFIERS  ·  ACCURACY & ROC-AUC BENCHMARKS",
                 "XGBoost Winner", ACCENT)
-    st.markdown("<div style='margin-top:16px'></div>", unsafe_allow_html=True)
 
-    # Model cards
-    model_cols = st.columns(5)
-    for col, m in zip(model_cols, MODELS_DATA):
+    for col, m in zip(st.columns(5), MODELS_DATA):
         border = f"2px solid {ACCENT}" if m["best"] else f"1px solid {BORDER}"
-        badge = f"<div style='font-family:\"Space Mono\",monospace;font-size:8px;color:{ACCENT};text-align:right;letter-spacing:1px'>★ BEST</div>" if m["best"] else ""
-        val_color = ACCENT if m["best"] else TEXT
-        auc_color = ACCENT if m["best"] else BLUE
+        vc = ACCENT if m["best"] else TEXT
+        ac = ACCENT if m["best"] else BLUE
+        badge = (f"<div style='font-family:\"Space Mono\",monospace;font-size:8px;"
+                 f"color:{ACCENT};text-align:right;letter-spacing:1px;"
+                 f"margin-bottom:6px'>★ BEST</div>") if m["best"] else ""
         with col:
             st.markdown(f"""
-            <div style='background:{CARD};border:{border};border-radius:12px;
-                        padding:18px 16px;height:100%'>
+            <div style='background:{CARD};border:{border};
+                        border-radius:12px;padding:18px 16px'>
               {badge}
               <div style='font-size:13px;font-weight:800;color:{TEXT};
-                          font-family:Syne,sans-serif;margin-bottom:12px'>{m["name"]}</div>
+                          font-family:Syne,sans-serif;margin-bottom:10px'>
+                {m["name"]}</div>
               <div style='font-family:"Space Mono",monospace;font-size:8px;
                           color:{MUTED};letter-spacing:1px'>ACCURACY</div>
-              <div style='font-size:26px;font-weight:800;color:{val_color};
-                          font-family:Syne,sans-serif;letter-spacing:-1px'>{m["acc"]}%</div>
+              <div style='font-size:26px;font-weight:800;color:{vc};
+                          font-family:Syne,sans-serif;letter-spacing:-1px'>
+                {m["acc"]}%</div>
               <div style='font-family:"Space Mono",monospace;font-size:8px;
                           color:{MUTED};letter-spacing:1px;margin-top:8px'>ROC-AUC</div>
-              <div style='font-size:20px;font-weight:800;color:{auc_color};
+              <div style='font-size:20px;font-weight:800;color:{ac};
                           font-family:Syne,sans-serif'>{m["auc"]:.3f}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            </div>""", unsafe_allow_html=True)
 
-    st.markdown("<div style='margin-top:16px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
-    # Accuracy + AUC charts
-    model_names = [m["name"].split()[0] for m in MODELS_DATA]
-    acc_vals    = [m["acc"] for m in MODELS_DATA]
-    auc_vals    = [m["auc"] for m in MODELS_DATA]
-    mc1         = [ACCENT if m["best"] else DIM  for m in MODELS_DATA]
-    mc2         = [ACCENT if m["best"] else BLUE for m in MODELS_DATA]
+    m_names = [m["name"].split()[0] for m in MODELS_DATA]
+    mc_cols = st.columns(2)
+    with mc_cols[0]:
+        card_title("Accuracy Comparison", "ALL 5 MODELS · TEST SET")
+        fig = base_fig(300)
+        fig.add_trace(go.Bar(
+            x=m_names, y=[m["acc"] for m in MODELS_DATA],
+            marker_color=[ACCENT if m["best"] else DIM for m in MODELS_DATA],
+            marker_line_width=0,
+            text=[f"{m['acc']}%" for m in MODELS_DATA],
+            textposition="outside", textfont=dict(color=TEXT, size=10),
+            hovertemplate="%{x}: <b>%{y}%</b><extra></extra>",
+        ))
+        fig.update_layout(yaxis=dict(range=[75, 98], gridcolor=BORDER),
+                          xaxis=dict(gridcolor="rgba(0,0,0,0)"))
+        render(fig, "acc_chart")
 
-    col_a, col_b = st.columns(2)
-    with col_a:
-        section_card("Accuracy Comparison", "ALL 5 MODELS · TEST SET")
-        fig, ax = plt.subplots(figsize=(6, 3.2))
-        bars = ax.bar(model_names, acc_vals, color=mc1, width=0.5, zorder=3)
-        for bar, val in zip(bars, acc_vals):
-            ax.text(bar.get_x()+bar.get_width()/2, val+0.2, f"{val}%",
-                    ha='center', color=TEXT, fontsize=9, fontweight='bold')
-        ax.set_ylim(75, 98)
-        ax.grid(axis='y', zorder=0); ax.tick_params(labelsize=9); _spine(ax)
-        show_fig(fig)
+    with mc_cols[1]:
+        card_title("ROC-AUC Comparison", "HIGHER IS BETTER · MAX 1.0")
+        fig = base_fig(300)
+        fig.add_trace(go.Bar(
+            x=m_names, y=[m["auc"] for m in MODELS_DATA],
+            marker_color=[ACCENT if m["best"] else BLUE for m in MODELS_DATA],
+            marker_line_width=0,
+            text=[f"{m['auc']:.3f}" for m in MODELS_DATA],
+            textposition="outside", textfont=dict(color=TEXT, size=10),
+            hovertemplate="%{x}: <b>%{y:.3f}</b><extra></extra>",
+        ))
+        fig.update_layout(yaxis=dict(range=[0.75, 1.0], gridcolor=BORDER),
+                          xaxis=dict(gridcolor="rgba(0,0,0,0)"))
+        render(fig, "auc_chart")
 
-    with col_b:
-        section_card("ROC-AUC Comparison", "HIGHER IS BETTER · MAX 1.0")
-        fig, ax = plt.subplots(figsize=(6, 3.2))
-        bars = ax.bar(model_names, auc_vals, color=mc2, width=0.5, zorder=3)
-        for bar, val in zip(bars, auc_vals):
-            ax.text(bar.get_x()+bar.get_width()/2, val+0.004, f"{val:.3f}",
-                    ha='center', color=TEXT, fontsize=9, fontweight='bold')
-        ax.set_ylim(0.75, 1.0)
-        ax.grid(axis='y', zorder=0); ax.tick_params(labelsize=9); _spine(ax)
-        show_fig(fig)
+    card_title("XGBoost — Top Feature Importances",
+               "WHICH FEATURES DRIVE PREDICTIONS MOST")
+    fc_colors = [ACCENT if v > 0.15 else ACCENT3 if v > 0.08
+                 else BLUE for v in FEAT_VALS]
+    fig = base_fig(320)
+    fig.add_trace(go.Bar(
+        y=FEAT_NAMES, x=FEAT_VALS, orientation='h',
+        marker_color=fc_colors, marker_line_width=0,
+        text=[f"{v:.2f}" for v in FEAT_VALS],
+        textposition="outside", textfont=dict(color=TEXT, size=10),
+        hovertemplate="%{y}: <b>%{x:.2f}</b><extra></extra>",
+    ))
+    fig.update_layout(xaxis=dict(range=[0, 0.38], gridcolor=BORDER),
+                      yaxis=dict(autorange="reversed",
+                                 gridcolor="rgba(0,0,0,0)"))
+    render(fig, "feat_imp")
 
-    # Feature importance
-    section_card("XGBoost — Top Feature Importances",
-                 "WHICH FEATURES DRIVE PREDICTIONS MOST")
-    feat_colors = [ACCENT if v>0.15 else ACCENT3 if v>0.08 else BLUE for v in FEAT_VALS]
-    fig, ax = plt.subplots(figsize=(10, 3.4))
-    bars = ax.barh(FEAT_NAMES, FEAT_VALS, color=feat_colors, height=0.5, zorder=3)
-    for bar, val in zip(bars, FEAT_VALS):
-        ax.text(val+0.003, bar.get_y()+bar.get_height()/2, f"{val:.2f}",
-                va='center', color=TEXT, fontsize=9, fontweight='bold')
-    ax.set_xlim(0, 0.38); ax.invert_yaxis()
-    ax.grid(axis='x', zorder=0); ax.tick_params(labelsize=10); _spine(ax)
-    show_fig(fig)
-
-    # Confusion matrix
-    section_card("XGBoost — Confusion Matrix", "PREDICTED vs ACTUAL · TEST SET")
-    fig, ax = plt.subplots(figsize=(5.5, 4.2))
-    cm_data  = [[1720, 78], [124, 78]]
-    cm_labels= [["TP\n1720", "FP\n78"], ["FN\n124", "TN\n78"]]
-    cm_colors= [[hex_to_rgba(ACCENT, 0.5), hex_to_rgba(ACCENT2, 0.2)],
-                [hex_to_rgba(ACCENT2, 0.2), hex_to_rgba(ACCENT, 0.3)]]
-    xlabels  = ["Predicted: On-Time", "Predicted: Delayed"]
-    ylabels  = ["Actual: On-Time", "Actual: Delayed"]
-    for i in range(2):
-        for j in range(2):
-            rect = FancyBboxPatch((j*1.1 - 0.48, (1-i)*1.1 - 0.48), 0.96, 0.96,
-                                  boxstyle="round,pad=0.06",
-                                  facecolor=cm_colors[i][j],
-                                  edgecolor=BORDER, linewidth=1.5)
-            ax.add_patch(rect)
-            ax.text(j*1.1, (1-i)*1.1, cm_labels[i][j],
-                    ha='center', va='center', fontsize=12,
-                    color=TEXT, fontweight='bold', family='monospace')
-    ax.set_xlim(-0.7, 1.85); ax.set_ylim(-0.65, 1.75)
-    ax.set_xticks([0, 1.1]); ax.set_xticklabels(xlabels, fontsize=9, color=MUTED)
-    ax.set_yticks([0, 1.1]); ax.set_yticklabels(ylabels[::-1], fontsize=9, color=MUTED)
-    ax.set_aspect('equal'); _spine(ax)
-    show_fig(fig)
+    card_title("XGBoost — Confusion Matrix",
+               "PREDICTED vs ACTUAL · TEST SET")
+    xl = ["Predicted: On-Time", "Predicted: Delayed"]
+    yl = ["Actual: On-Time",    "Actual: Delayed"]
+    labels_cm = [["TP: 1720", "FP: 78"], ["FN: 124", "TN: 78"]]
+    anns = [
+        dict(x=xl[j], y=yl[i],
+             text=f"<b>{labels_cm[i][j]}</b>",
+             showarrow=False,
+             font=dict(color=TEXT, size=14, family="Space Mono"))
+        for i in range(2) for j in range(2)
+    ]
+    fig = go.Figure(go.Heatmap(
+        z=[[1720, 78], [124, 78]],
+        x=xl, y=yl,
+        colorscale=[[0, "rgba(255,77,109,0.25)"],
+                    [1, "rgba(0,255,178,0.5)"]],
+        showscale=False,
+        hovertemplate="%{x}<br>%{y}<br>Count: <b>%{z}</b><extra></extra>",
+    ))
+    fig.update_layout(
+        height=300, paper_bgcolor=CARD, plot_bgcolor=CARD,
+        margin=dict(l=12, r=12, t=12, b=12),
+        annotations=anns,
+        xaxis=dict(side="bottom",
+                   tickfont=dict(color=TEXT, size=11), linecolor=BORDER),
+        yaxis=dict(tickfont=dict(color=TEXT, size=11), linecolor=BORDER),
+        font=dict(family="Space Mono", color=MUTED),
+    )
+    render(fig, "cm")
